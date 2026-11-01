@@ -14,7 +14,8 @@ Einrichtung: siehe **ANLEITUNG.md**.
 | `capacitor.config.json`, `package.json` | Einstellungen für die Android-App (Capacitor) |
 | `android-extra/` | Weckton und Benachrichtigungs-Symbol für Android |
 | `resources/` | App-Symbol und Startbild |
-| `supabase/schema.sql` | Datenbank-Tabellen und Schutzregeln |
+| `supabase/schema.sql` | Datenbank-Tabellen und Schutzregeln (eigene Daten) |
+| `supabase/schema-v2.sql` | Profile, Freunde, Gruppen, Chat und deren Schutzregeln |
 | `.github/workflows/build.yml` | Baut automatisch Web-Version und APK |
 | `tools/` | Hilfsskripte (Symbol-Schrift, Bibliotheken laden, Signatur-Schlüssel) |
 
@@ -26,7 +27,7 @@ Einrichtung: siehe **ANLEITUNG.md**.
 | `00-icons.js` | Symbol-Liste (automatisch erzeugt) |
 | `01-config.js` | **Nur Daten:** Symbole, Farben, Bereichsarten mit Vorlagen, Dokumentarten, Startpakete, Menü |
 | `02-helpers.js` | Helfer für Datum, Zahlen, Text |
-| `03-store.js` | Datenmodell, Beispieldaten, Speichern auf dem Gerät und bei Supabase, Anmeldung, Papierkorb |
+| `03-store.js` | Datenmodell, Speichern auf dem Gerät (je Konto getrennt) und bei Supabase, Anmeldung, Papierkorb |
 | `04-logic.js` | Fälligkeiten, Erinnerungen, Erledigen/Überspringen, Verträge, automatische Aufgaben, Kosten, Suche |
 | `05-ui.js` | Bausteine (Aufgabenzeile, Kacheln, Formularfelder, Meldungen) |
 | `06-views.js` | Die Seiten. Ganz unten `ROUTES`: welche Adresse welche Seite zeigt |
@@ -34,6 +35,8 @@ Einrichtung: siehe **ANLEITUNG.md**.
 | `08-extras.js` | Hochladen, Export/Import, Claude-Funktionen, Aussehen, Startpakete |
 | `09-main.js` | `ACTIONS` (was bei Klicks passiert), `SUBMIT` (Speichern), `start()` |
 | `10-notify.js` | Benachrichtigungen und Wecker (Android: auf dem Gerät geplant, PC: Browser) |
+| `11-social.js` | Konto, Profil, Freunde, Gruppen, Chat: Laden und Speichern bei Supabase, automatisches Abmelden |
+| `12-social-views.js` | Seiten dazu: Anmeldung, „Gemeinsam“, Gruppe, Chat, Profilfoto |
 | `99-start.js` | Startet die App |
 
 ## Typische Änderungen

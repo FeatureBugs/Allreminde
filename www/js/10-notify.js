@@ -55,6 +55,16 @@ function upcomingNotifications(from, to) {
       for (let i = 0; i < 6; i++, at = new Date(at.getTime() + Number(n.nagHours) * 3600e3)) push(at, "Überfällig: " + t.title, "push", "nag" + at.getTime());
     }
   });
+  // Gemeinsame Termine aus Gruppen (siehe 11-social.js)
+  if (typeof mySharedTasks === "function") mySharedTasks().forEach(({ i, s, due }) => {
+    (i.reminders || [1, 0]).forEach(days => {
+      let at = atTime(addDays(due, -days), days === 0 && i.time ? i.time : n.defaultTime);
+      at = outsideQuiet(at);
+      if (at < from || at > to) return;
+      const title = days === 0 ? i.title + (i.time ? " um " + i.time : " ist heute") : i.title + " – " + relDays(days);
+      out.push({ at, taskId: null, title, body: s.name, mode: "push", key: "sp:" + i.id + ":" + days + i.date + (i.time || "") });
+    });
+  });
   // Tägliche Zusammenfassung
   if (n.summaryOn) for (let i = 0; i < 7; i++) {
     const day = addDays(today(), i), at = atTime(day, n.summaryTime);
@@ -123,17 +133,29 @@ async function showBrowserNotification(x) {
   } catch (e) { try { new Notification(x.title, opts); } catch (_) {} }
 }
 // Wecker-Fenster mit Ton (wenn die App geöffnet ist)
-let alarmAudio = null;
+// Browser (z. B. Firefox) erlauben Ton erst nach einem Klick in die Seite. Daher wird der Ton beim ersten Klick "freigeschaltet".
+let alarmAudio = null, audioCtx = null;
+function unlockAudio() {
+  try { audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); if (audioCtx.state === "suspended") audioCtx.resume(); } catch (e) {}
+}
+document.addEventListener("click", unlockAudio, { once: true });
+document.addEventListener("keydown", unlockAudio, { once: true });
 function showAlarm(x) {
   $("#alarm-root").innerHTML = '<div class="alarm" role="alertdialog" aria-label="Wecker">' + icon("alarm") + "<b>" + esc(x.title) + "</b><span>" + esc(x.body) + '</span><div class="row center">' +
     btn("alarm-snooze", "10 Min später", "snooze", "", ' data-id="' + (x.taskId || "") + '"') + btn("alarm-done", "Erledigt", "check", "primary", ' data-id="' + (x.taskId || "") + '"') + btn("alarm-stop", "Aus", "close") + "</div></div>";
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)(); alarmAudio = ctx;
-    const beep = t0 => { const o = ctx.createOscillator(), g = ctx.createGain(); o.frequency.value = 880; o.connect(g); g.connect(ctx.destination); g.gain.setValueAtTime(.25, t0); g.gain.exponentialRampToValueAtTime(.001, t0 + .4); o.start(t0); o.stop(t0 + .4); };
-    for (let i = 0; i < 60; i++) beep(ctx.currentTime + i * .6);
+    const ctx = audioCtx || new (window.AudioContext || window.webkitAudioContext)(); audioCtx = ctx;
+    if (ctx.state === "suspended") ctx.resume();
+    alarmAudio = [];
+    for (let i = 0; i < 60; i++) {                       // 60 Pieptöne (ca. 36 Sekunden)
+      const t0 = ctx.currentTime + i * .6, o = ctx.createOscillator(), g = ctx.createGain();
+      o.frequency.value = 880; o.connect(g); g.connect(ctx.destination);
+      g.gain.setValueAtTime(.25, t0); g.gain.exponentialRampToValueAtTime(.001, t0 + .4);
+      o.start(t0); o.stop(t0 + .4); alarmAudio.push(o);
+    }
   } catch (e) {}
 }
-function stopAlarm() { $("#alarm-root").innerHTML = ""; if (alarmAudio) { try { alarmAudio.close(); } catch (e) {} alarmAudio = null; } }
+function stopAlarm() { $("#alarm-root").innerHTML = ""; (alarmAudio || []).forEach(o => { try { o.stop(); } catch (e) {} }); alarmAudio = null; }
 
 /* ---------- Einschalten, Testen ---------- */
 async function enableNotifications() {

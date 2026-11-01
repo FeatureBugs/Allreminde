@@ -36,6 +36,7 @@ function vStart() {
 }
 // Inhalt eines Startseiten-Abschnitts → { body, right }
 function startSection(id, act, over, week) {
+  if (id === "shared") return typeof sharedSection === "function" ? sharedSection() : null;
   if (id === "today") {
     const list = act.filter(x => ["over", "today"].includes(x.c.st));
     const rem = act.filter(x => x.c.remindToday && !list.includes(x));
@@ -479,7 +480,7 @@ const PROFILE_FIELDS = [
 function vProfil() {
   const p = S.profile, st = S.settings, initials = (p.name || "?").split(/\s+/).filter(Boolean).map(w => w[0]).slice(0, 2).join("").toUpperCase() || "?";
   const swatches = (name, list, cur) => '<div class="swatches">' + Object.keys(list).map(c => '<label><input type="radio" name="' + name + '" value="' + c + '"' + (cur === c ? " checked" : "") + '><span class="swatch" style="--c:' + (Array.isArray(list[c]) ? list[c][0] : list[c]) + '" title="' + c + '"></span></label>').join("") + "</div>";
-  return crumb("mehr", "Mehr") + '<div class="panel profile-card"><div class="avatar" style="background:' + (COLORS[st.color] || COLORS.petrol) + '">' + esc(initials) + '</div><div class="min0"><h1>' + (p.name ? esc(p.name) : "Dein Profil") + '</h1><div class="muted">' + esc([p.city, p.birthday ? "Geboren am " + fmtD(parse(p.birthday), { day: "numeric", month: "long", year: "numeric" }) : ""].filter(Boolean).join(" · ")) + '</div><div class="row wrap-chips"><span class="chip">' + S.categories.length + ' Bereiche</span><span class="chip">' + S.objects.length + ' Einträge</span><span class="chip">' + S.docs.length + " Dokumente</span></div></div></div>" +
+  return crumb("mehr", "Mehr") + (typeof accountBox === "function" ? accountBox() : "") + '<div class="panel profile-card"><div class="avatar" style="background:' + (COLORS[st.color] || COLORS.petrol) + '">' + esc(initials) + '</div><div class="min0"><h1>' + (p.name ? esc(p.name) : "Dein Profil") + '</h1><div class="muted">' + esc([p.city, p.birthday ? "Geboren am " + fmtD(parse(p.birthday), { day: "numeric", month: "long", year: "numeric" }) : ""].filter(Boolean).join(" · ")) + '</div><div class="row wrap-chips"><span class="chip">' + S.categories.length + ' Bereiche</span><span class="chip">' + S.objects.length + ' Einträge</span><span class="chip">' + S.docs.length + " Dokumente</span></div></div></div>" +
     '<form class="panel" data-form="profile">' + formHtml(PROFILE_FIELDS, p) + '<div class="form-f"><span class="muted small">Die Adresse wird für Kündigungsschreiben verwendet.</span><button class="btn primary" type="submit">' + icon("save") + "Profil speichern</button></div></form>" +
     section("Erinnerungen", '<form class="panel" data-form="settings-rem"><div class="form">' + reminderPicker(st.reminders) + '<p class="hint full">Gilt für alle Aufgaben, bei denen weder die Aufgabe noch der Bereich eigene Erinnerungen hat.</p></div><div class="form-f"><span></span><button class="btn primary" type="submit">Speichern</button></div></form>') +
     section("Aussehen", '<div class="panel"><div class="form">' +
@@ -542,9 +543,10 @@ function vBenachrichtigungen() {
       "Einstellungen → Akku → Hintergrund-Nutzungslimits → Allreminde zu den <b>Apps, die nie in den Standby gehen</b> hinzufügen.",
       "Einstellungen → Apps → Allreminde → Benachrichtigungen: Kategorie <b>Wecker</b> auf „Ton und Pop-up“ stellen.",
       "Tippe oben auf „Pünktliche Wecker erlauben“ und schalte den Schalter ein."]
-    : ["In Edge oder Chrome oben rechts auf <b>App installieren</b> klicken. Allreminde läuft dann in einem eigenen Fenster.",
-       "In Edge: edge://apps öffnen → Allreminde → <b>Beim Anmelden automatisch starten</b>. So ist es nach jedem PC-Start da.",
-       "Windows-Einstellungen → System → Benachrichtigungen: den Browser bzw. Allreminde erlauben und „Nicht stören“ prüfen."];
+    : ["<b>Firefox (ab Version 143):</b> rechts in der Adresszeile auf das Web-App-Symbol klicken. Allreminde bekommt ein eigenes Fenster und ein Symbol in der Taskleiste.",
+       "<b>Mit Windows starten:</b> Windows-Taste + R → <b>shell:startup</b> eingeben → die Allreminde-Verknüpfung aus dem Startmenü in diesen Ordner ziehen.",
+       "Nach dem Start einmal kurz in Allreminde klicken. Erst dann darf der Browser den Weckton abspielen.",
+       "Windows-Einstellungen → System → Benachrichtigungen: <b>Firefox</b> erlauben und „Nicht stören“ prüfen."];
   out += section(NATIVE ? "Damit am Samsung nichts verloren geht" : "Damit es am PC zuverlässig klappt", '<div class="panel pad"><ol class="steps">' + tips.map(t => "<li>" + t + "</li>").join("") + "</ol></div>");
   const next = upcomingNotifications(new Date(), addDays(new Date(), 7)).slice(0, 8);
   out += section("Die nächsten Erinnerungen", next.length ? '<div class="list panel">' + next.map(x => '<div class="item">' + icoBox(null, x.mode === "alarm" ? "alarm" : "notifications") + '<div class="body"><div class="title">' + esc(x.title) + '</div><div class="meta">' + esc(fmtShort(x.at) + " · " + pad(x.at.getHours()) + ":" + pad(x.at.getMinutes()) + " · " + x.body) + "</div></div></div>").join("") + "</div>" : emptyBox("notifications_paused", "In den nächsten 7 Tagen sind keine Benachrichtigungen geplant."));

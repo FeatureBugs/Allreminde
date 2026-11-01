@@ -11,7 +11,9 @@
    ===================================================================== */
 
 let S = null;                       // der aktuelle Zustand
-const STORAGE_KEY = "allreminde-v1"; // Schlüssel im Browser-Speicher
+const STORAGE_KEY = "allreminde-v1"; // Schlüssel im Browser-Speicher (nur ohne Online-Konto)
+// Mit Konto bekommt jeder Nutzer seinen eigenen Speicher auf dem Gerät
+const storageKey = () => sync.user ? "allreminde-u-" + sync.user.id : STORAGE_KEY;
 
 /* ---------- Bausteine: neue Objekte mit allen Feldern ---------- */
 function newCategory(p) {
@@ -168,7 +170,7 @@ function normalize(s) {
 
   // Startseiten-Abschnitte: unbekannte entfernen, neue ergänzen
   const secs = ((s.layout && s.layout.sections) || []).filter(x => SECTIONS[x.id]);
-  DEFAULT_SECTIONS.forEach(id => { if (!secs.some(x => x.id === id)) secs.push({ id, on: !SECTIONS_OFF_BY_DEFAULT.includes(id) }); });
+  DEFAULT_SECTIONS.forEach((id, i) => { if (!secs.some(x => x.id === id)) secs.splice(Math.min(i, secs.length), 0, { id, on: !SECTIONS_OFF_BY_DEFAULT.includes(id) }); });
   s.layout = { sections: secs };
 
   s.categories = s.categories.map(c => {
@@ -241,7 +243,8 @@ function joinState(map) {
 
 // Speichern anstoßen (wird nach jeder Änderung aufgerufen)
 function persist() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(S)); } catch (e) { /* Speicher voll oder gesperrt */ }
+  if (cloudReady() && !sync.user) return;                // abgemeldet: nichts speichern
+  try { localStorage.setItem(storageKey(), JSON.stringify(S)); } catch (e) { /* Speicher voll oder gesperrt */ }
   if (typeof scheduleNotifications === "function") scheduleNotifications();
   if (!sync.user) return;
   sync.dirty = true;
@@ -285,16 +288,42 @@ function setSyncStatus(mode) {
 /* ---------- Verbindung zu Supabase (Konto & Sync) ---------- */
 const cloudReady = () => !!(SUPABASE_URL && SUPABASE_KEY && window.supabase);
 async function connectCloud() {
-  if (!cloudReady()) { setSyncStatus("off"); return; }
-  sync.client = sync.client || window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true } });
-  const { data } = await sync.client.auth.getSession();
-  sync.user = data.session ? data.session.user : null;
+  if (!cloudReady()) { AUTH.ready = true; setSyncStatus("off"); return; }
+  if (/[?&]reset=1/.test(location.search)) AUTH.mode = "newpw";      // kommt vom Link "Passwort zurücksetzen"
+  sync.client = sync.client || window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "pkce" } });
   sync.client.auth.onAuthStateChange((event, session) => {
-    const before = sync.user && sync.user.id;
-    sync.user = session ? session.user : null;
-    if ((sync.user && sync.user.id) !== before) { sync.saved = {}; if (sync.user) startCloudSync(); else { stopRealtime(); setSyncStatus("local"); render(); } }
+    if (event === "PASSWORD_RECOVERY") AUTH.mode = "newpw";           // Link aus "Passwort vergessen"-E-Mail
+    setTimeout(() => userChanged(session ? session.user : null), 0);
   });
-  if (sync.user) startCloudSync(); else setSyncStatus("local");
+  let { data } = await sync.client.auth.getSession();
+  if (AUTH.mode === "newpw") {
+    if (data.session) touchActivity();
+    else { AUTH.mode = "reset"; AUTH.info = "Der Link ist abgelaufen oder wurde in einem anderen Browser geöffnet. Fordere hier einen neuen an."; }
+  }
+  if (data.session && !NATIVE && inactiveTooLong()) {                 // PC: zu lange nichts gemacht → abmelden
+    AUTH.info = "Du wurdest nach " + AUTO_LOGOUT_MIN + " Minuten ohne Aktivität abgemeldet.";
+    await sync.client.auth.signOut(); data = { session: null };
+  }
+  if (/[?&](code|reset)=/.test(location.search)) history.replaceState(null, "", location.pathname + location.hash);   // Adresse aufräumen
+  AUTH.ready = true;
+  await userChanged(data.session ? data.session.user : null);
+}
+// Angemeldeter Nutzer hat gewechselt (Anmelden, Abmelden, anderes Konto)
+let currentUserId;
+async function userChanged(user) {
+  const id = user ? user.id : null;
+  sync.user = user;
+  if (id === currentUserId) return;
+  currentUserId = id; sync.saved = {}; stopRealtime();
+  try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}          // alte Daten ohne Konto nicht liegen lassen
+  if (!user) { setSyncStatus("local"); onSignedOut(); return; }
+  SOC.ready = false;
+  let cached = null;                                                  // eigener Speicher dieses Kontos auf dem Gerät
+  try { const raw = localStorage.getItem(storageKey()); if (raw) cached = normalize(JSON.parse(raw)); } catch (e) {}
+  S = cached || normalize(emptyState());                              // neues Konto startet leer
+  syncAutoTasks(); applyLook(); render();
+  await startCloudSync();
+  await onSignedIn();
 }
 async function startCloudSync() {
   setSyncStatus("wait");
@@ -315,20 +344,23 @@ async function refreshFromCloud(first) {
     const changed = Object.keys(map).some(k => map[k] !== sync.saved[k]) || Object.keys(sync.saved).some(k => !(k in map));
     sync.saved = map;
     if (changed) { try { S = normalize(joinState(map)); syncAutoTasks(); afterLoad(); } catch (e) { console.error(e); } }
-  } else if (first && !S.example) {
-    sync.saved = {}; queueCloudWrites();                 // erstes Anmelden: Daten dieses Geräts hochladen
+  } else if (first) {
+    sync.saved = {}; queueCloudWrites();                 // neues Konto: leeren Anfang speichern
   }
   setSyncStatus("cloud");
 }
 function afterLoad() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(S)); } catch (e) {}
+  try { localStorage.setItem(storageKey(), JSON.stringify(S)); } catch (e) {}
   applyLook();
   if (typeof scheduleNotifications === "function") scheduleNotifications();
   if (!$("#sheet")) render();
 }
 // Anmelden / Registrieren / Abmelden
 async function signIn(email, password) { const { error } = await sync.client.auth.signInWithPassword({ email, password }); return error; }
-async function signUp(email, password) { const { error } = await sync.client.auth.signUp({ email, password, options: { emailRedirectTo: APP_URL || location.href.split("#")[0] } }); return error; }
+async function signUp(email, password) {
+  const { data, error } = await sync.client.auth.signUp({ email, password, options: { emailRedirectTo: APP_URL || location.href.split(/[?#]/)[0] } });
+  return error || (data && data.session ? null : { confirm: true });   // confirm: E-Mail muss noch bestätigt werden
+}
 async function signOut() { await sync.client.auth.signOut(); }
 
 // Nach jeder Änderung: automatische Aufgaben abgleichen, speichern, neu zeichnen, Hinweis zeigen

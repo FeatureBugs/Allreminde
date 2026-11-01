@@ -9,6 +9,9 @@ const route = () => decodeURIComponent((location.hash || "").slice(1)) || "start
 function go(hash) { if (route() === hash) render(); else location.hash = hash; }
 
 function render() {
+  const gate = authGate();                                  // Anmeldung nötig? (siehe 12-social-views.js)
+  document.body.classList.toggle("auth-mode", !!gate);
+  if (gate) { $("#view").innerHTML = '<div class="page">' + gate + "</div>"; return; }
   const r = route();
   const key = Object.keys(ROUTES).find(k => k.endsWith("-") ? r.startsWith(k) : r === k) || "start";
   const view = ROUTES[key];
@@ -18,12 +21,16 @@ function render() {
   bindTileDrag();
   loadMissingUrls();
 }
+let NAV_ACTIVE = "start";
 function renderNav(active) {
+  NAV_ACTIVE = active;
   const link = ([id, ic, label]) => '<a href="#' + id + '" class="' + (active === id ? "on" : "") + '">' + icon(ic) + "<span>" + label + "</span></a>";
   $("#nav-side").innerHTML = NAV.filter(n => n[0] !== "mehr").map(link).join("") + '<div class="nav-sep"></div>' + MORE_PAGES.map(link).join("");
   $("#nav-tab").innerHTML = NAV.map(link).join("");
   const over = activeTasks().filter(x => x.c.st === "over").length;
   $$(".nav a[href='#aufgaben'], .tabbar a[href='#aufgaben']").forEach(a => { if (over) a.insertAdjacentHTML("beforeend", '<em class="badge-n">' + over + "</em>"); });
+  const social = typeof socialBadge === "function" ? socialBadge() : 0;   // ungelesene Nachrichten + Freundschaftsanfragen
+  $$(".nav a[href='#gemeinsam'], .tabbar a[href='#gemeinsam']").forEach(a => { if (social) a.insertAdjacentHTML("beforeend", '<em class="badge-n">' + social + "</em>"); });
 }
 window.addEventListener("hashchange", () => { UI.edit = false; closeSheet(); $("#lb-root").innerHTML = ""; render(); window.scrollTo(0, 0); });
 
@@ -105,7 +112,7 @@ const ACTIONS = {
   "notif-disable": () => { saveDevice({ notify: false }); const LN = Plugin("LocalNotifications"); if (LN) LN.getPending().then(p => p.notifications.length && LN.cancel({ notifications: p.notifications.map(x => ({ id: x.id })) })); toast("Benachrichtigungen auf diesem Gerät aus"); render(); },
   "notif-test": el => testNotification(el.dataset.mode),
   "notif-exact": () => openExactAlarmSetting(),
-  "sign-out": async () => { await signOut(); toast("Abgemeldet. Deine Daten bleiben auf diesem Gerät."); render(); },
+  "sign-out": async () => { closeSheet(); await signOut(); toast("Abgemeldet"); },
   "login-mode": () => { UI.signup = !UI.signup; render(); },
   "ai-key-remove": () => { saveDevice({ apiKey: "" }); toast("Schlüssel entfernt"); render(); },
   "unsnooze": el => { task(el.dataset.id).snooze = ""; closeSheet(); commit("Verschiebung aufgehoben"); },
@@ -217,7 +224,7 @@ const ACTIONS = {
   "reset-ask": () => { $("#reset-row").lastElementChild.outerHTML = '<span class="confirm">Wirklich alles löschen?' + btn("reset", "Ja", null, "danger") + btn("reset-no", "Nein", null, "ghost") + "</span>"; },
   "reset-no": () => render(),
   "reset": () => { const undo = snapshot(), keep = { profile: S.profile, settings: S.settings }; S = Object.assign(emptyState(), keep, { setupDone: true }); commit("Alles zurückgesetzt", undo); },
-  "del-cancel": () => { const act = { taskmenu: "del-task-ask", task: "del-task-ask", category: "del-cat-ask", item: "del-obj-ask", log: "del-log-ask", record: "del-record-ask", doc: "del-doc-ask", simple: "del-simple-ask" }[SHEET.type]; $("#del-zone").innerHTML = btn(act, "Löschen", "delete", "danger ghost"); }
+  "del-cancel": () => { const act = { taskmenu: "del-task-ask", task: "del-task-ask", category: "del-cat-ask", item: "del-obj-ask", log: "del-log-ask", record: "del-record-ask", doc: "del-doc-ask", simple: "del-simple-ask", "sp-item": "sp-del-ask" }[SHEET.type]; $("#del-zone").innerHTML = btn(act, "Löschen", "delete", "danger ghost"); }
 };
 
 /* =====================================================================
@@ -463,11 +470,15 @@ function bindTileDrag() {
 /* ---------- Start ---------- */
 function start() {
   $$("[data-icon]").forEach(el => { el.textContent = iconChar(el.dataset.icon); });   // Symbole im Grundgerüst
-  try { const raw = localStorage.getItem(STORAGE_KEY); if (raw) S = normalize(JSON.parse(raw)); } catch (e) { S = null; }
-  if (!S) S = normalize(exampleState());
+  if (cloudReady()) S = normalize(emptyState());            // mit Konto: Daten kommen nach dem Anmelden
+  else {                                                      // ohne Online-Speicher: alles nur auf diesem Gerät
+    try { const raw = localStorage.getItem(STORAGE_KEY); if (raw) S = normalize(JSON.parse(raw)); } catch (e) { S = null; }
+    if (!S) S = normalize(exampleState());
+  }
   syncAutoTasks();
   applyLook();
   render();
   connectCloud();
   startNotifications();
+  startAutoLogout();
 }

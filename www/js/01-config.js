@@ -174,14 +174,15 @@ const STARTER = [
 // Abschnitte der Startseite (Reihenfolge und Sichtbarkeit sind einstellbar)
 const SECTIONS = {
   today: "Heute", stats: "Überblick", fav: "Favoriten", next: "Als Nächstes", cats: "Bereiche",
-  docs: "Dokumente & Links", birthdays: "Nächste Geburtstage", costs: "Kosten diesen Monat", shopping: "Einkaufsliste"
+  docs: "Dokumente & Links", birthdays: "Nächste Geburtstage", costs: "Kosten diesen Monat", shopping: "Einkaufsliste", shared: "Gemeinsam"
 };
-const DEFAULT_SECTIONS = ["today","stats","fav","next","cats","docs","birthdays","costs","shopping"];
+const DEFAULT_SECTIONS = ["today","stats","shared","fav","next","cats","docs","birthdays","costs","shopping"];
 const SECTIONS_OFF_BY_DEFAULT = ["costs","shopping"];
 
-// Navigation: [Route, Symbol, Name]. Die ersten fünf erscheinen auch unten am Handy.
-const NAV = [["start","home","Start"],["aufgaben","checklist","Aufgaben"],["bereiche","grid_view","Bereiche"],["dokumente","folder_open","Dokumente"],["mehr","apps","Mehr"]];
+// Navigation: [Route, Symbol, Name]. Erscheinen auch unten am Handy. "Dokumente" steht am PC zusätzlich in der Seitenleiste.
+const NAV = [["start","home","Start"],["aufgaben","checklist","Aufgaben"],["bereiche","grid_view","Bereiche"],["gemeinsam","group","Gemeinsam"],["mehr","apps","Mehr"]];
 const MORE_PAGES = [
+  ["dokumente","folder_open","Dokumente","Ausweise, Verträge, Links"],
   ["kalender","calendar_month","Kalender","Monatsansicht aller Termine"], ["jahr","date_range","Jahresplaner","Was steht wann im Jahr an"],
   ["listen","checklist_rtl","Listen","Einkaufsliste, Verliehen, Gutscheine"], ["reisen","luggage","Reisen","Checklisten & Dokumenten-Check"],
   ["kontakte","contacts","Kontakte","Werkstatt, Ärzte, Handwerker"], ["kosten","payments","Kosten","Ausgaben, Abos & Tankbuch"],

@@ -1,8 +1,8 @@
 /* sw.js – macht die Web-Version offline-fähig und öffnet Aufgaben beim Klick auf eine Benachrichtigung */
-const CACHE = "allreminde-v4";
+const CACHE = "allreminde-v5";
 const FILES = ["./", "index.html", "css/style.css", "fonts/symbols.woff", "manifest.webmanifest", "icons/icon-192.png",
   "vendor/supabase.js", "vendor/qrcode.js", "js/00-env.js", "js/00-icons.js", "js/01-config.js", "js/02-helpers.js", "js/03-store.js",
-  "js/04-logic.js", "js/05-ui.js", "js/06-views.js", "js/07-forms.js", "js/08-extras.js", "js/09-main.js", "js/10-notify.js", "js/99-start.js"];
+  "js/04-logic.js", "js/05-ui.js", "js/06-views.js", "js/07-forms.js", "js/08-extras.js", "js/09-main.js", "js/10-notify.js", "js/11-social.js", "js/12-social-views.js", "js/99-start.js"];
 
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).catch(() => {})); self.skipWaiting(); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k))))); self.clients.claim(); });
