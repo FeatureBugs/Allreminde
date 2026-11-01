@@ -1,0 +1,8 @@
+{
+  "appId": "de.allreminde.app",
+  "appName": "Allreminde",
+  "webDir": "www",
+  "plugins": {
+    "LocalNotifications": { "smallIcon": "ic_stat_notify", "iconColor": "#0B6E78" }
+  }
+}
