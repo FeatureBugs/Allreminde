@@ -243,8 +243,11 @@ async function autoLogout() { AUTH.info = "Du wurdest nach " + AUTO_LOGOUT_MIN +
 // Wird von connectCloud() aufgerufen, sobald jemand angemeldet ist
 async function onSignedIn() {
   touchActivity();
-  await loadMyProfile();
-  if (SOC.me) { await loadSocial(); startSocialRealtime(); }
+  try {
+    await withTimeout(loadMyProfile(), 15000, "Profil laden");
+    if (SOC.me) { await withTimeout(loadSocial(), 20000, "Freunde und Gruppen laden"); startSocialRealtime(); }
+  } catch (e) { console.error(e); noteError(e); if (!SOC.me) SOC.error = "net"; }
+  SOC.ready = true;
   render();
 }
 function onSignedOut() {

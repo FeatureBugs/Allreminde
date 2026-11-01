@@ -286,16 +286,24 @@ function setSyncStatus(mode) {
 }
 
 /* ---------- Verbindung zu Supabase (Konto & Sync) ---------- */
+// Supabase sperrt die Anmeldung sonst über alle offenen Tabs hinweg. Hängt ein anderer Tab, hängt alles.
+// Dieses Schloss gilt nur für diesen Tab.
+let lockChain = Promise.resolve();
+function tabLock(name, timeout, fn) { const run = lockChain.then(fn, fn); lockChain = run.catch(() => {}); return run; }
+// Wartet höchstens ms Millisekunden auf eine Antwort
+const withTimeout = (promise, ms, what) => Promise.race([promise, new Promise((_, rej) => setTimeout(() => rej(new Error(what + ": keine Antwort vom Server")), ms))]);
 const cloudReady = () => !!(SUPABASE_URL && SUPABASE_KEY && window.supabase);
 async function connectCloud() {
   if (!cloudReady()) { AUTH.ready = true; setSyncStatus("off"); return; }
   if (/[?&]reset=1/.test(location.search)) AUTH.mode = "newpw";      // kommt vom Link "Passwort zurücksetzen"
-  sync.client = sync.client || window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "pkce" } });
+  sync.client = sync.client || window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: "pkce", lock: tabLock } });
   sync.client.auth.onAuthStateChange((event, session) => {
     if (event === "PASSWORD_RECOVERY") AUTH.mode = "newpw";           // Link aus "Passwort vergessen"-E-Mail
     setTimeout(() => userChanged(session ? session.user : null), 0);
   });
-  let { data } = await sync.client.auth.getSession();
+  let data = { session: null };
+  try { data = (await withTimeout(sync.client.auth.getSession(), 15000, "Anmeldung prüfen")).data; }
+  catch (e) { console.error(e); noteError(e); }
   if (AUTH.mode === "newpw") {
     if (data.session) touchActivity();
     else { AUTH.mode = "reset"; AUTH.info = "Der Link ist abgelaufen oder wurde in einem anderen Browser geöffnet. Fordere hier einen neuen an."; }
@@ -313,7 +321,7 @@ let currentUserId;
 async function userChanged(user) {
   const id = user ? user.id : null;
   sync.user = user;
-  if (id === currentUserId) return;
+  if (id === currentUserId) { if (AUTH.ready) render(); return; }
   currentUserId = id; sync.saved = {}; stopRealtime();
   try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}          // alte Daten ohne Konto nicht liegen lassen
   if (!user) { setSyncStatus("local"); onSignedOut(); return; }
@@ -322,7 +330,7 @@ async function userChanged(user) {
   try { const raw = localStorage.getItem(storageKey()); if (raw) cached = normalize(JSON.parse(raw)); } catch (e) {}
   S = cached || normalize(emptyState());                              // neues Konto startet leer
   syncAutoTasks(); applyLook(); render();
-  await startCloudSync();
+  try { await withTimeout(startCloudSync(), 20000, "Daten laden"); } catch (e) { console.error(e); noteError(e); setSyncStatus("err"); }
   await onSignedIn();
 }
 async function startCloudSync() {

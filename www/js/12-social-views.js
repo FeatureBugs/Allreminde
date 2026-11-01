@@ -11,10 +11,26 @@ const SHARED_REMINDERS = [[0, "Am Tag"], [1, "1 Tag vorher"], [2, "2 Tage vorher
 /* ---------- Was wird statt der App angezeigt? (null = normale App) ---------- */
 function authGate() {
   if (!cloudReady()) return null;                        // ohne Online-Speicher: keine Anmeldung nötig
-  if (!AUTH.ready || (sync.user && !SOC.ready && AUTH.mode !== "newpw")) return '<div class="auth"><div class="auth-card center"><div class="spinner"></div><p class="muted">Lädt …</p></div></div>';
+  if (!AUTH.ready || (sync.user && !SOC.ready && AUTH.mode !== "newpw")) {
+    clearTimeout(AUTH.slowTimer);
+    AUTH.slowTimer = setTimeout(() => { const box = $("#loading-help"); if (box) box.outerHTML = loadingHelp("Das dauert ungewöhnlich lange."); }, 8000);
+    return '<div class="auth"><div class="auth-card center"><div class="spinner"></div><p class="muted">Lädt …</p><div id="loading-help"></div></div></div>';
+  }
   if (!sync.user || AUTH.mode === "newpw") return vAuth();
+  if (!SOC.me && SOC.error === "net") return '<div class="auth">' + loadingHelp("Dein Profil konnte nicht geladen werden.") + "</div>";
   if (!SOC.me) return vSetupProfile();
   return null;
+}
+
+// Hilfe, falls das Laden hängt oder ein Fehler passiert (zeigt auch die Fehlermeldung für die Fehlersuche)
+const ERRORS = [];
+function noteError(e) { ERRORS.push(String((e && (e.message || e.reason && e.reason.message || e.reason)) || e).slice(0, 300)); ERRORS.splice(0, ERRORS.length - 5); }
+window.addEventListener("error", e => noteError(e.error || e.message));
+window.addEventListener("unhandledrejection", e => noteError(e.reason));
+function loadingHelp(title) {
+  return '<div class="auth-card" style="margin:16px auto;max-width:520px"><h2 style="margin:0">' + esc(title) + '</h2><p class="muted" style="margin:0">Lade die Seite neu. Hilft das nicht, melde dich ab und wieder an.</p>' +
+    (ERRORS.length ? '<pre class="err-box">' + esc(ERRORS.join("\n")) + "</pre>" : "") +
+    '<div class="auth-links">' + btn("reload", "Neu laden", "refresh", "primary") + btn("hard-logout", "Abmelden", "logout", "ghost") + "</div></div>";
 }
 
 /* ---------- Anmelden, Registrieren, Passwort ---------- */
@@ -310,6 +326,10 @@ const findSpaceItem = id => { for (const k in SOC.items) { const x = SOC.items[k
 Object.assign(ACTIONS, {
   "auth-mode": el => { AUTH.mode = el.dataset.mode; AUTH.info = ""; render(); },
   "reload": () => location.reload(),
+  "hard-logout": () => {                                   // Anmeldung auf diesem Gerät löschen, auch wenn der Server nicht antwortet
+    try { Object.keys(localStorage).filter(k => k.startsWith("sb-")).forEach(k => localStorage.removeItem(k)); } catch (e) {}
+    location.reload();
+  },
   "edit-account": () => accountSheet(),
   "avatar-remove": async () => { const old = SOC.me.avatar_path; await db().from("profiles").update({ avatar_path: null }).eq("id", me()); if (old) db().storage.from("avatars").remove([old]); SOC.me.avatar_path = null; closeSheet(); render(); toast("Profilfoto entfernt"); },
   "gtab": el => { UI.gtab = el.dataset.tab; UI.found = null; render(); },

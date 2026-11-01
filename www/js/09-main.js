@@ -9,6 +9,13 @@ const route = () => decodeURIComponent((location.hash || "").slice(1)) || "start
 function go(hash) { if (route() === hash) render(); else location.hash = hash; }
 
 function render() {
+  try { renderPage(); }
+  catch (e) {                                               // Fehler sichtbar machen statt hängen zu bleiben
+    console.error(e); noteError(e);
+    $("#view").innerHTML = '<div class="page">' + loadingHelp("Beim Anzeigen ist ein Fehler aufgetreten.") + "</div>";
+  }
+}
+function renderPage() {
   const gate = authGate();                                  // Anmeldung nötig? (siehe 12-social-views.js)
   document.body.classList.toggle("auth-mode", !!gate);
   if (gate) { $("#view").innerHTML = '<div class="page">' + gate + "</div>"; return; }

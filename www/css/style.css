@@ -515,3 +515,4 @@ button.faces{background:none;border:0;padding:0;cursor:pointer;color:inherit;fon
 .chat-form .btn{width:40px;height:40px}
 @media (max-width:760px){.chat{height:calc(100vh - 300px - env(safe-area-inset-bottom,0px))}}
 .account+.profile-card{display:none}
+.err-box{background:var(--surface-2);border-radius:10px;padding:10px;font-size:12px;white-space:pre-wrap;overflow-wrap:anywhere;margin:0;color:var(--danger)}
