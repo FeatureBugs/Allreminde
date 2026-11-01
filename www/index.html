@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Allreminde</title>
+<meta name="theme-color" content="#0B6E78">
+<meta name="description" content="Allreminde – Erinnerungen für alles: Termine, Geräte, Fahrzeuge, Dokumente">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <a class="brand" href="#start"><span class="mark"><span class="ms" data-icon="notifications_active"></span></span>Allreminde</a>
+    <a class="side-search" href="#suche"><span class="ms" data-icon="search"></span>Suchen</a>
+    <nav class="nav" id="nav-side"></nav>
+    <div class="grow"></div>
+    <a class="sync" id="sync-side" href="#konto"><span class="dot"></span><span>Wird geladen</span></a>
+  </aside>
+  <main class="main">
+    <div class="wrap">
+      <div class="topbar">
+        <a class="brand" href="#start"><span class="mark"><span class="ms" data-icon="notifications_active"></span></span>Allreminde</a>
+        <div class="row nowrap">
+          <a class="icon-btn" href="#suche" aria-label="Suchen"><span class="ms" data-icon="search"></span></a>
+          <button class="icon-btn" data-act="quick-add" aria-label="Neu anlegen"><span class="ms" data-icon="add"></span></button>
+        </div>
+      </div>
+      <div id="view"></div>
+    </div>
+  </main>
+  <nav class="tabbar" id="nav-tab"></nav>
+</div>
+<div id="sheet-root"></div>
+<div id="lb-root"></div>
+<div id="alarm-root"></div>
+<div id="toast-root"></div>
+
+<!-- Bibliotheken (werden beim Bauen in vendor/ heruntergeladen) -->
+<script src="vendor/supabase.js"></script>
+<script src="vendor/qrcode.js"></script>
+<!-- Die App -->
+<script src="js/00-env.js"></script>
+<script src="js/00-icons.js"></script>
+<script src="js/01-config.js"></script>
+<script src="js/02-helpers.js"></script>
+<script src="js/03-store.js"></script>
+<script src="js/04-logic.js"></script>
+<script src="js/05-ui.js"></script>
+<script src="js/06-views.js"></script>
+<script src="js/07-forms.js"></script>
+<script src="js/08-extras.js"></script>
+<script src="js/09-main.js"></script>
+<script src="js/10-notify.js"></script>
+<script src="js/99-start.js"></script>
+</body>
+</html>
